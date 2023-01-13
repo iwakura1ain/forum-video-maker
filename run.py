@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from Scrapper.reddit import RedditScrapper
-from Video.Voice import CommentToVoice
+from Video.video import Video
 from Log.log import *
 
 def main():
@@ -21,10 +21,10 @@ def main():
             logInfo(f"{n} : {comment}")
 
         
-        logInfo("generating voice...")
-        voice = CommentToVoice()
-        voice.generateAllVoices(post)
-    
+        logInfo("generating video...")
+        video = Video()
+        video.generateVideo(post)
+        
 
 if __name__=="__main__":
     main()

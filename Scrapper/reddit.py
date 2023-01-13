@@ -7,6 +7,8 @@ from selenium.common.exceptions import (
     InvalidArgumentException, StaleElementReferenceException, NoSuchElementException
 )
 
+from PIL import Image
+
 import sys
 sys.path.append("../Log")
 from Log.log import *
@@ -47,14 +49,14 @@ class PostData:
     
     def __init__(self, post, driver=None):
         self.DRIVER = getWebDriver() if driver is None else driver
-        
+
         self.title = post.find_element(By.XPATH, self.title_xpath).text
         self.link = post.find_element(By.XPATH, self.link_xpath).get_attribute("href")
-
+        
         self.is_nsfw = False
         self.is_ad = False
 
-        self.comment_limit = 0
+        #self.comment_limit = 0
         self.comments = {0: [], 1: []}
         
         
@@ -62,25 +64,21 @@ class PostData:
         return self.title
     
     
-    def getCommentsListing(self, comment_limit=10):
-        self.comment_limit = comment_limit
+    def getCommentsListing(self, count=10):
+        #self.comment_limit = comment_limit
         
         self.DRIVER.get(self.link)
         content = self.DRIVER.find_element(By.ID, "AppRouter-main-content")
-        all_comments = self.getAllComments(content)
+        all_comments = self.getAllComments(content, count)
 
         self.getCommentData(all_comments)
         
         
-    def getAllComments(self, content):
+    def getAllComments(self, content, count):
         all_comments = dict()
-        while len(all_comments) < self.comment_limit:
+        while len(all_comments) < count:
             comments = content.find_elements(By.XPATH, self.comment_xpath)
             all_comments.update({c: None for c in comments})
-            
-            # all_comments.update(
-            #     dict(content.find_elements(By.XPATH, self.comment_xpath))
-            # )
             scrollScreen(self.DRIVER)
             
         return all_comments.keys()  #ignore first post for comment input
@@ -93,6 +91,9 @@ class PostData:
                 self.comments[commentData.level].append(commentData)
             except ValueError:
                 pass
+
+    #def getCommentScreenshot(self):
+        
 
             
 class RedditScrapper:
