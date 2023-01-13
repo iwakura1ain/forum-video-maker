@@ -22,7 +22,7 @@ class CommentData:
         self.level = self.getCommentLevel(comment)
         self.upvote = self.getUpvote(comment)
 
-        self.audio = None
+        self.audio = []
         
         
     def __str__(self):
@@ -116,11 +116,10 @@ class RedditScrapper:
             try:
                 postData = PostData(post)
                 self.post_listing.append(postData)
-                print(f"scrapped: {postData}")
                 logInfo(f"scrapped: {postData}")
                 
             except NoSuchElementException:
-                print(f"no post for {post.get_attribute('class')}")
+                logInfo(f"no post for {post.get_attribute('class')}")
             
             
     def getAllPosts(self, content):  # parent div of data-scroller-first
@@ -158,11 +157,11 @@ if __name__=="__main__":
     redditScrapper.getPostListing()
     
     for post in redditScrapper.post_listing:
-        print("\n", post.title)
+        logInfo("\n", post.title)
         post.getCommentsListing()
 
         for n, comment in enumerate(post.comments[0]):
-            print(n, comment)
+            logInfo(n, comment)
        
     
     

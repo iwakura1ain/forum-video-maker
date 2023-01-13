@@ -25,6 +25,7 @@ def logCall(logStr):
 
 
 def logInfo(logStr):
+    print(logStr)
     logger.info(logStr)
 
     

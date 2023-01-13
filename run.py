@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from Scrapper.reddit import RedditScrapper
-from Video.Voice import CommentToSpeech
+from Video.Voice import CommentToVoice
 from Log.log import *
 
 def main():
@@ -18,13 +18,12 @@ def main():
 
         post.getCommentsListing(50)        
         for n, comment in enumerate(post.comments[0]):
-            print(n, comment)
             logInfo(f"{n} : {comment}")
 
         
-        print("generating voice...")
-        voice = CommentToSpeech(post)
-        voice.generateAllVoices()
+        logInfo("generating voice...")
+        voice = CommentToVoice()
+        voice.generateAllVoices(post)
     
 
 if __name__=="__main__":
