@@ -11,7 +11,7 @@ def main():
     
     subreddit = "https://reddit.com/r/AskReddit/"
     redditScrapper = RedditScrapper(subreddit)
-    redditScrapper.getPostListing(0)
+    redditScrapper.getPostListing(3)
         
     for post in redditScrapper.post_listing:
         print("\n", post.title)
