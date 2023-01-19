@@ -12,10 +12,10 @@ def getWebDriver():
 
     return DRIVER
 
-def scrollScreen(driver):
-    screen_height = driver.execute_script("return window.screen.height;")
+def scrollScreen(driver, amount):
+    #screen_height = driver.execute_script("return window.screen.height;")
     driver.execute_script(
-        f"window.scrollTo(0, {screen_height}*5)"
+        f"window.scrollTo(0, {amount})"
     )
 
 

@@ -3,12 +3,15 @@ from driver import getWebDriver, scrollScreen
 from urllib.parse import urlsplit
 
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import (
     InvalidArgumentException, StaleElementReferenceException, NoSuchElementException
 )
 
 from PIL import Image
 from io import BytesIO
+import base64
 
 # import sys
 # sys.path.append("../Log")
@@ -18,15 +21,21 @@ from io import BytesIO
 class CommentData:
     comment_level = ["padding-left: 16px;", "padding-left: 37px;"]  # level1 , level2
     xpath = {
-        "level": ".//../../../..",
+        "base": ".//div[contains(@class, 'RichTextJSON-root')]",
+        "level": "./../../../..",
         "upvote": ".//../../div[3]/div[1]/div[1]",   
     }
     
-    def __init__(self, comment):
+    def __init__(self, comment, image):
+        comment = comment.find_element(By.XPATH, self.xpath["base"])
+
+        #comment data
         self.text = [p.text for p in comment.find_elements(By.XPATH, ".//*")]
         self.level = self.getCommentLevel(comment)
         self.upvote = self.getUpvote(comment)
 
+        #movie data
+        self.image = image
         self.audio = []
         
         
@@ -47,20 +56,27 @@ class CommentData:
        
 class PostData:
     xpath = {
+        #post info
         "base": ".//div[@data-adclicklocation='title']",
         "title": ".//div[1]/a[1]/div[1]/h3",
         "link": ".//div[1]/a[1]",
         "is_nsfw": ".//div[2]/div[2]/span",
-        "is_ad": ".//div[3]/div[1]/div[1]/div[1]/div[1]/span[2]/span[1]"
+        "is_ad": ".//div[3]/div[1]/div[1]/div[1]/div[1]/span[2]/span[1]",
+
+        #post contents
+        #"post": ".//div[@data-testid='post-container']/..",
+        "post": "//div[@id='AppRouter-main-content']/div[1]/div[1]/div[2]/div[3]/div[1]/div[2]"
     }
 
     
-    def __init__(self, post, img, driver=None):
+    def __init__(self, post, driver=None):
         self.DRIVER = getWebDriver() if driver is None else driver
 
-        self.img = img
+        #post data
         self.title, self.link, self.is_ad, self.is_nsfw = self.getPostData(post)
-        
+        self.image = None
+
+        #comment data
         self.comments = {0: [], 1: []}
         
         
@@ -85,36 +101,51 @@ class PostData:
         except:
             retval[3] = False
             
-        return retval
+        return retval    
 
-        
-    def getCommentsListing(self, count=10):
-        #self.comment_limit = comment_limit
-        
-        self.DRIVER.get(self.link)
-        content = self.DRIVER.find_element(By.ID, "AppRouter-main-content")
-        all_comments = self.getAllComments(content, count)
 
-        self.getCommentData(all_comments)
-        
-        
-    def getAllComments(self, content, count):
-        all_comments = dict()
-        while len(all_comments) < count:
-            comments = content.find_elements(By.XPATH, self.comment_xpath)
-            all_comments.update({c: None for c in comments})
-            scrollScreen(self.DRIVER)
-            
-        return all_comments.keys()  #ignore first post for comment input
     
+    def getImage(self, element): #TODO
+        retval = element.screenshot_as_base64
+        
+        if element.size["height"] > self.DRIVER.get_window_size()["height"]:
+            return retval
+        else:
+            return retval
 
-    def getCommentData(self, all_comments):
-        for comment in all_comments:
+    def getPostTitleContents(self, content):
+        print("class: ", content.get_attribute("class"))
+        postTitle = content.find_element(By.XPATH, ".//div[1]")
+        self.image = self.getImage(postTitle)
+
+        return postTitle
+        
+    def getPostContentsDiv(self, content):
+        comments_listing = content.find_element(By.XPATH, "./div[last()]/div[1]/div[1]/div[1]")
+        return comments_listing
+        
+        
+    def getPostContents(self, comment_limit=None):
+        self.DRIVER.get(self.link)
+        content = self.DRIVER.find_element(By.XPATH, self.xpath["post"])
+
+        _ = self.getPostTitleContents(content)
+
+        isLess = (lambda cnt, total: cnt < total) if comment_limit else (lambda cnt, total: True)
+        comments_listing, cnt = self.getPostContentsDiv(content), 0
+        while isLess(cnt, comment_limit):
+            comment = comments_listing.find_element(By.XPATH, f"./div[{cnt+1}]")
             try:
-                commentData = CommentData(comment)
+                commentImg = self.getImage(comment)
+                commentData = CommentData(comment, commentImg)
                 self.comments[commentData.level].append(commentData)
-            except ValueError:
+                
+                print(commentData)
+                
+            except:
                 pass
+            
+            cnt += 1
 
             
 class RedditScrapper:
@@ -122,24 +153,24 @@ class RedditScrapper:
         self.subreddit = subreddit
         self.DRIVER = getWebDriver() if driver is None else driver
     
-        #self.post_limit = 2
-        #self.post_count = 2
         self.post_listing = []
         
         
     def getPostListing(self, post_limit=None):
-        
-        
         self.DRIVER.get(self.subreddit)
+        WebDriverWait(driver=driver, timeout=10).until(
+            lambda x: x.execute_script("return document.readyState === 'complete'")
+        )
+        
         content = self.DRIVER.find_element(By.ID, "AppRouter-main-content")
+        content.screenshot("/tmp/main.png")
         posts_div = self.getPostsDiv(content)
 
-        for post, img in self.getPosts(posts_div, post_limit):
-            postData = PostData(post, img)
+        for post in self.getPosts(posts_div, post_limit):
+            postData = PostData(post, driver=self.DRIVER)
             self.post_listing.append(postData)
             print(f"post: {postData.title}\n link: {postData.link}\n nsfw: {postData.is_nsfw}\n ad: {postData.is_ad}")
-
-            
+           
 
     def getPostsDiv(self, content):  # parent div of data-scroller-first
         xpath = ".//div[4]/div[1]/div[4]"
@@ -148,79 +179,82 @@ class RedditScrapper:
     
     def getPosts(self, all_posts, post_limit):
         isLess = (lambda cnt, total: cnt < total) if post_limit else (lambda cnt, total: True)
-
         prev_posts, cnt = [], 0
-        while isLess(cnt, post_limit):
+        while True:
             posts = all_posts.find_elements(By.XPATH, ".//div[@data-testid='post-container']")
             curr_posts = [p for p in posts if p not in prev_posts]
             prev_posts = posts
-            
+
+            scroll_amount = 0
             for n, p in enumerate(curr_posts):
-                img = self.getPostImage(p)
-                yield p, img
-
+                if not isLess(cnt, post_limit):
+                    return
                 
-                scrollScreen(self.DRIVER)
-
-            cnt += len(curr_posts)
-
-            
-    def getPostImage(self, post):
-        coord = post.location
-        size = post.size
-        
-        img = self.DRIVER.get_screenshot_as_png()
-        img = Image.open(BytesIO(img))
-
-        left, top, right, bottom = [
-            coord["x"],
-            coord["y"],
-            coord["x"]+size["width"],
-            coord["y"]+size["height"],
-        ]
-
-        return img.crop((left, top, right, bottom))
-
-    # def getPost(self, all_posts):  # iterate from 1
-    #     while self.post_count <= self.post_limit:
-    #         post = all_posts.find_element(By.XPATH, f".//div[{self.post_count}]")               
-    #         yield post
+                scroll_amount += p.size["height"]
+                cnt += 1
+                yield p
                 
-    #         self.post_count += 1
-            
-            
-    # def isAdvertisement(self, post):
-    #     xpath = ".//div[1]/div[1]/div[1]/div[3]/div[1]/div[1]/div[1]/div[1]/span[2]/span[1]"
-    #     try:
-    #         is_advertisement = post.find_element(By.XPATH, xpath)
-    #         if is_advertisement.text == "promoted":
-    #             return True
-        
-    #         return False
+                
 
-    #     except NoSuchElementException:
-    #         return False
+            scrollScreen(self.DRIVER, scroll_amount)
+            #cnt += len(curr_posts)
+
+    def loginReddit(self, username="904ehd", passwd="912ehd406gh"):
+        loginUrl = "https://www.reddit.com/login/"
+        self.DRIVER.get(loginUrl)
         
+        usernameField = self.DRIVER.find_element(By.ID, "loginUsername")
+        usernameField.click()
+        usernameField.clear()
+        usernameField.send_keys(username)
+
+        passwdField = self.DRIVER.find_element(By.ID, "loginPassword")
+        passwdField.click()
+        passwdField.clear()
+        passwdField.send_keys(passwd)
         
-                 
+        submit = self.DRIVER.find_element(By.XPATH, ".//button[@type='submit']")
+        submit.click()
+        
+        WebDriverWait(driver=driver, timeout=10).until(
+            lambda x: x.execute_script("return document.readyState === 'complete'")
+        )
+        
+        if self.DRIVER.find_element(By.CLASS_NAME, "AnimatedForm__errorMessage").text != "":
+            return False
+        
+        return True
+            
+
+            
 if __name__=="__main__":
     subreddit = "https://reddit.com/r/AskReddit/"
     driver = getWebDriver()
 
     redditScrapper = RedditScrapper(subreddit, driver=driver)
-    redditScrapper.getPostListing(post_limit=10)
+
+    #if not redditScrapper.loginReddit():
+     #   print("login failed")
+      #   quit()
+            
+    redditScrapper.getPostListing(post_limit=1)
     
-    for post in redditScrapper.post_listing:
-        post.img.save(f"/tmp/{post.title}.png")
+    for i, post in enumerate(redditScrapper.post_listing):
+        post.getPostContents(comment_limit=30)
+        img = Image.open(BytesIO(base64.b64decode(post.image)))
+        img.save(f"/tmp/post{i}.png")
+
+        for j, comment in enumerate(post.comments[0]):
+            img = Image.open(BytesIO(base64.b64decode(comment.image)))
+            img.save(f"/tmp/post{i}-comment{j}.png")
 
         
-        # post.getCommentsListing()
+        
 
-        # for n, comment in enumerate(post.comments[0]):
-        #     print(n, comment)
        
     
     
+
 
 
 
