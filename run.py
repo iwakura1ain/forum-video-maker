@@ -1,31 +1,45 @@
 #!/usr/bin/python
 
-from Scrapper.reddit import RedditScrapper
+from Reddit.redditScrapper import RedditScrapper
 from Video.video import Video
 from Log.log import *
 
-def main():
-    startLogger()
-
-    logInfo("scrapper started")
-    
-    subreddit = "https://reddit.com/r/AskReddit/"
-    redditScrapper = RedditScrapper(subreddit)
-    redditScrapper.getPostListing(3)
-        
-    for post in redditScrapper.post_listing:
-        print("\n", post.title)
-
-        post.getCommentsListing(50)        
-        for n, comment in enumerate(post.comments[0]):
-            logInfo(f"{n} : {comment}")
-
-        
-        logInfo("generating video...")
-        video = Video()
-        video.generateVideo(post)
-        
 
 if __name__=="__main__":
-    main()
+    startLogger()
+
+    scrapper = RedditScrapper("askreddit", "https://www.reddit.com/r/AskReddit/")
+    video = Video()
+
+    if not scrapper.loginReddit():
+        quit()
+        
+    # scrapper.getPostListing(post_limit=1)
+    # for i, post in enumerate(scrapper.post_listing):
+    #     post.getPostContents(comment_limit=50)
+    #     video.generateVideo(post)
+
+
+    for post in scrapper.getPostListing(post_limit=5):
+        post.getPostContents(comment_limit=50)
+        video.generateVideo(post)
+        
+        
+        
+
+        
+        
+
+       
+    
+    
+
+
+
+
+
+
+
+
+
 

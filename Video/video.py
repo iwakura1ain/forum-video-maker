@@ -1,94 +1,135 @@
 from gtts import gTTS
 from io import BytesIO
 
-from multiprocessing import Process, Queue
-from queue import Empty
+from string import ascii_letters, printable
+from re import compile, UNICODE
 
-import sys
-sys.path.append("../Log")
+from os import listdir
 from Log.log import *
+from random import choice
+
+from PIL import Image
+from io import BytesIO
+import base64
 
 #from moviepy.editor import *
-import moviepy.editor as Movie
+#import moviepy.editor as Movie
+
+from moviepy.editor import (
+    ImageClip,
+    VideoFileClip,
+    AudioFileClip,
+    CompositeVideoClip,
+    concatenate_videoclips,
+    concatenate_audioclips
+
+)
 
     
 class Video:
-    def __init__(self, background="./clip.mp4"):
-        self.background = background
+    dirtyText = "".join(
+        [c for c in printable if c not in ascii_letters + ".?!~',& " + "0123456789"]
+    )
+    replacementText = {
+        " tf ": " the fuck ",
+        "AMA": "Ask me anything",
+        "ELI5": "Explain like I'm 5",
+        "TL;DR": "Too Long Didn't Read",
+        "NSFW": "Not safe for work",
+        "!!!": "!",
+        "???": "?",
+        "\n": "",
+        "rAskReddit": "subreddit AskReddit"
+    }
+    emojiText = compile("["
+        u"\U0001F600-\U0001F64F"  # emoticons
+        u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+        u"\U0001F680-\U0001F6FF"  # transport & map symbols
+        u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                           "]+", flags=UNICODE)
+
+    
+    def __init__(self):
+        self.open_instances = []
         
-    def generateVideo(self, post, level=0):
+
+    
+    def generateVideo(self, post, outputDir="Clips/processed", level=0):
         logInfo(f"generating video {post.title}")
         
-        background_clip = Movie.VideoFileClip(self.background).subclip(0, 120).volumex(0.5)
-        title_clip = self.generateTitleClip(post)
-        comment_clip = Movie.concatenate_videoclips(
-            [self.generateCommentClip(c) for c in post.comments[level]]
+        backgroundClip = self.getBackgroundClip()
+        titleClip = self.getClip([post.title], post.postImage)
+        commentClip = concatenate_videoclips(
+            [self.getClip(c.text, c.image) for c in post.comments[level]]
         )
+        
+        contentClip = concatenate_videoclips([titleClip, commentClip]).set_pos('center')
+        video = CompositeVideoClip([backgroundClip, contentClip])
+        video = video.set_duration(contentClip.duration)
+    
+        videoTitle = self.cleanText(post.title)
+        video.write_videofile(f"{outputDir}/{videoTitle}.mp4", audio_bufsize=2048)
+        logInfo(f"video done {videoTitle}.mp4")
+        self.closeOpenInstances()
+        
 
-        content_clip = Movie.concatenate_videoclips([title_clip, comment_clip]).set_pos('center')
-        video = Movie.CompositeVideoClip([background_clip, content_clip])
-        video.write_videofile(f"/tmp/{post.title}.mp4")
-        logInfo(f"video done {post.title}")
+    def getBackgroundClip(self, backgroundDir="Clips/background"):
+        background = backgroundDir + "/" + choice(listdir(backgroundDir))
+        retval = VideoFileClip(background).volumex(0.5)
+        self.open_instances.append(retval)
+        return retval
 
-    def generateCommentClip(self, comment):
-        text_clip = self.generateTextClip(comment)
-        voice_clip = self.generateVoiceClip(comment)
+    
+    def getClip(self, text, image):
+        logDebug(f"generating clip for:\n {text}")
 
-        retval = []
-        for text, voice in zip(text_clip, voice_clip):
-            t = text.set_pos("center").set_duration(voice.duration)
-            t = t.set_audio(voice)
-            retval.append(t)
+        image = Image.open(BytesIO(base64.b64decode(image)))
+        image.save("/tmp/imageclip.png")
+        clip = ImageClip("/tmp/imageclip.png")
+
+        voice = self.getVoiceClip(text)
+        clip = clip.set_duration(voice.duration)
+        clip = clip.set_audio(voice)
+
+        return clip
 
         
-        return Movie.concatenate_videoclips(retval)
-        #return Movie.concatenate(retval, method="compose")
-
-    def generateTitleClip(self, post):
-        text_clip = Movie.TextClip(
-            post.title,
-            font="Cantarell-Extra-Bold",
-            fontsize=40,
-            stroke_width=1.5,
-            method="caption",
-            align="center",
-            color="white"
-        )
-
-        tts = gTTS(post.title, lang="en")
-        tts.save(f"/tmp/title-{post.title}.mp3")
-        voice_clip = Movie.AudioFileClip(f"/tmp/title-{post.title}.mp3")
-
-        t = text_clip.set_pos("center").set_duration(voice_clip.duration)
-        t = t.set_audio(voice_clip)
-        return t
-            
-    def generateTextClip(self, comment):
-        retval = []
-        for paragraph in comment.text:
-            logInfo(f"generating textclip:\n{paragraph}")
-            
-            text_clip = Movie.TextClip(
+    def getVoiceClip(self, text):
+        voiceClips = []
+        for n, paragraph in enumerate(text):
+            tts = gTTS(
                 paragraph,
-                font="Cantarell-Extra-Bold",
-                fontsize=40,
-                stroke_width=1.5,
-                method="caption",
-                align="center",
-                color="white"
+                pre_processor_funcs=[self.cleanText],
+                lang="en"
             )
-            retval.append(text_clip)
-            
-        return retval
 
-    def generateVoiceClip(self, comment):
-        retval = []
-        for i, paragraph in enumerate(comment.text):
-            logInfo(f"generating audioclip:\n{paragraph}")
-
-            tts = gTTS(paragraph, lang="en")
-            tts.save(f"/tmp/voiceclip-{i}.mp3")
-            voice_clip = Movie.AudioFileClip(f"/tmp/voiceclip-{i}.mp3")
-            retval.append(voice_clip)
+            tts.save("/tmp/voiceclip.mp3")
+            clip = AudioFileClip("/tmp/voiceclip.mp3", fps=31100, buffersize=10000000)
+            self.open_instances.append(clip)
+            voiceClips.append(clip)
+        
+        return concatenate_audioclips(voiceClips)
+    
+    
+    def cleanText(self, text):    
+        for t in self.dirtyText: 
+            text = text.replace(t, "")
             
-        return retval
+        for word, replacement in self.replacementText.items():
+            text = text.replace(word, replacement)
+            
+        text = self.emojiText.sub(r'', text)
+        
+        return text    
+    
+    def closeOpenInstances(self):
+        for instance in self.open_instances:
+            instance.close()
+        self.open_instances = []
+
+
+
+
+
+
+
