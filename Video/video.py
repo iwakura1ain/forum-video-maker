@@ -8,7 +8,7 @@ from os import listdir
 from Log.log import *
 from random import choice
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import base64
 
@@ -52,10 +52,11 @@ class Video:
     def __init__(self):
         self.open_instances = []
         
-
-    
-    def generateVideo(self, post, outputDir="Clips/processed", level=0):
+        
+    def generateVideo(self, post, outputDir="Static/Clips/processed", level=0):
         logInfo(f"generating video {post.title}")
+
+        thumbnail = self.getThumbnail(post)
         
         backgroundClip = self.getBackgroundClip()
         titleClip = self.getClip([post.title], post.postImage)
@@ -69,13 +70,15 @@ class Video:
     
         videoTitle = self.cleanText(post.title)
         video.write_videofile(f"{outputDir}/{videoTitle}.mp4", audio_bufsize=2048)
+        thumbnail.save(f"{outputDir}/{videoTitle}-thumbnail.png")
         logInfo(f"video done {videoTitle}.mp4")
+
         self.closeOpenInstances()
         
 
-    def getBackgroundClip(self, backgroundDir="Clips/background"):
+    def getBackgroundClip(self, backgroundDir="Static/Clips/background"):
         background = backgroundDir + "/" + choice(listdir(backgroundDir))
-        retval = VideoFileClip(background).volumex(0.5)
+        retval = VideoFileClip(background).volumex(0.3)
         self.open_instances.append(retval)
         return retval
 
@@ -97,19 +100,61 @@ class Video:
     def getVoiceClip(self, text):
         voiceClips = []
         for n, paragraph in enumerate(text):
-            tts = gTTS(
-                paragraph,
-                pre_processor_funcs=[self.cleanText],
-                lang="en"
-            )
+            try:
+                tts = gTTS(
+                    paragraph,
+                    pre_processor_funcs=[self.cleanText],
+                    lang="en"
+                )
 
-            tts.save("/tmp/voiceclip.mp3")
-            clip = AudioFileClip("/tmp/voiceclip.mp3", fps=31100, buffersize=10000000)
-            self.open_instances.append(clip)
-            voiceClips.append(clip)
+                tts.save("/tmp/voiceclip.mp3")
+                clip = AudioFileClip("/tmp/voiceclip.mp3", fps=31100, buffersize=10000000)
+                self.open_instances.append(clip)
+                voiceClips.append(clip)
+                
+            except:
+                pass
         
         return concatenate_audioclips(voiceClips)
+
+
+    def getThumbnail(self, post):
+        background = Image.open("Static/Thumbnails/askreddit2.png")
+        fontsize, spacing, text = self.getThumbnailText(post.postTitle)
+
+        draw = ImageDraw.Draw(background)
+        font = ImageFont.truetype("Static/font3.ttf", fontsize)
+        draw.text((40, 240), text, (255, 155, 255), font=font, spacing=spacing)
+        
+        return background
+        
     
+    def getThumbnailText(self, text, fontsize=80, spacing=50):
+        lineMax, newlineMax = 25, 3
+        while True:
+            tokens = text.split(" ")
+        
+            lineSize, newlineCount, retval = 0, 1, ""
+            for i, t in enumerate(tokens):        
+                if lineSize + len(t) > lineMax:
+                    t = "\n" + t + " "
+                    lineSize = len(t)
+                    newlineCount += 1
+                
+                else:
+                    t = t + " "
+                    lineSize += len(t)
+                    
+                retval = retval + t
+        
+            if spacing > spacing - 20*(newlineMax - newlineCount):
+                return fontsize, spacing, retval
+        
+            fontsize -= 10
+            newlineMax += 2
+            lineMax += 4
+            spacing -= 10    
+
     
     def cleanText(self, text):    
         for t in self.dirtyText: 
@@ -123,9 +168,15 @@ class Video:
         return text    
     
     def closeOpenInstances(self):
-        for instance in self.open_instances:
-            instance.close()
+        # for instance in self.open_instances:
+        #     instance.close()
+
+        map(lambda ins: ins.close(), self.open_instances)
         self.open_instances = []
+
+
+
+
 
 
 

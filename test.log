@@ -1,7 +1,18 @@
 INFO:forum-video-maker:login succeeded
 INFO:forum-video-maker:retrieving post listing
+INFO:forum-video-maker:login succeeded
 INFO:forum-video-maker:retrieving post contents
-INFO:forum-video-maker:generating video r/AskReddit is looking for new moderators!
-INFO:forum-video-maker:video done subreddit AskReddit is looking for new moderators!.mp4
+INFO:forum-video-maker:generating video Happy Birthday AskReddit!
+INFO:forum-video-maker:video done Happy Birthday AskReddit!.mp4
 INFO:forum-video-maker:retrieving post contents
-INFO:forum-video-maker:generating video What’s something you learned “embarrassingly late” in life?
+INFO:forum-video-maker:generating video AskReddit's 15th anniversary t-shirt design contest
+INFO:forum-video-maker:video done AskReddit's 15th anniversary tshirt design contest.mp4
+INFO:forum-video-maker:retrieving post contents
+INFO:forum-video-maker:generating video What’s one thing you would treat yourself to regularly if money was no object?
+INFO:forum-video-maker:video done What’s one thing you would treat yourself to regularly if money was no object?.mp4
+INFO:forum-video-maker:retrieving post contents
+INFO:forum-video-maker:generating video Sailors of reddit,what's the most unusual thing you've experienced while at sea?
+INFO:forum-video-maker:video done Sailors of reddit,what's the most unusual thing you've experienced while at sea?.mp4
+INFO:forum-video-maker:retrieving post contents
+INFO:forum-video-maker:generating video What hobby is an immediate red flag?
+INFO:forum-video-maker:video done What hobby is an immediate red flag?.mp4

@@ -1,7 +1,7 @@
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import *
 
-from .driver import getWebDriver, scrollScreen, waitForPage
+from Driver.driver import *
 from .redditData import *
 
 from Log.log import *
@@ -13,16 +13,14 @@ class RedditScrapper:
     def __init__(self, name, subreddit, dbfile="test.db", driver=None):
         self.subreddit = subreddit
         self.DRIVER = getWebDriver() if driver is None else driver
+
         self.db = DBConnection(dbfile)
         self.db.getTable(name)
-    
-        #self.post_listing = []
         
 
     @logCall("retrieving post listing")
     def getPostListing(self, post_limit=None):
-        self.DRIVER.get(self.subreddit)       
-        waitForPage(self.DRIVER, self.subreddit)
+        getPage(self.DRIVER, self.subreddit)
     
         content = self.DRIVER.find_element(By.ID, "AppRouter-main-content")
         posts_div = self.getPostsDiv(content)
@@ -83,34 +81,10 @@ class RedditScrapper:
             #cnt += len(curr_posts)
 
     def savePost(self, postData):
-        return self.db.insertValue(postData.getHash())
-    
+        #return self.db.insertValue(postData.getHash())
+        return self.db.insertValue(postData)
 
-    def loginReddit(self, username="904ehd", passwd="912ehd406gh"):
-        loginUrl = "https://www.reddit.com/login/"
-        self.DRIVER.get(loginUrl)
-        waitForPage(self.DRIVER, loginUrl)
         
-        usernameField = self.DRIVER.find_element(By.ID, "loginUsername")
-        usernameField.click()
-        usernameField.clear()
-        usernameField.send_keys(username)
-
-        passwdField = self.DRIVER.find_element(By.ID, "loginPassword")
-        passwdField.click()
-        passwdField.clear()
-        passwdField.send_keys(passwd)
-        
-        submit = self.DRIVER.find_element(By.XPATH, ".//button[@type='submit']")
-        submit.click()
-        
-        if waitForPage(self.DRIVER, "https://www.reddit.com/"):
-            logInfo("login succeeded")
-            return True    
-
-        logInfo("login failed")
-        return False
-    
 
 
 class DBConnection:
@@ -148,6 +122,8 @@ class DBConnection:
     
     
     def insertValue(self, value):
+        value = value.getHash()
+        
         if self.checkValueExists(value):
             return False
         

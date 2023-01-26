@@ -1,4 +1,4 @@
-from .driver import getWebDriver, scrollScreen, waitForPage
+from Driver.driver import *
 
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import *
@@ -19,7 +19,8 @@ class CommentData:
         comment = comment.find_element(By.XPATH, self.xpath["base"])
 
         #comment data
-        self.text = [p.text for p in comment.find_elements(By.XPATH, ".//*")]
+        #self.text = [p.text for p in comment.find_elements(By.XPATH, ".//*")]
+        self.text = [p.text for p in comment.find_elements(By.TAG_NAME, "p")]
         self.level = self.getCommentLevel(comment)
         self.upvote = self.getUpvote(comment)
 
@@ -106,8 +107,10 @@ class PostData:
     
     @logCall("retrieving post contents")
     def getPostContents(self, comment_limit=None):
-        self.DRIVER.get(self.link)
-        waitForPage(self.DRIVER, self.link)
+        # self.DRIVER.get(self.link)
+        # waitForPage(self.DRIVER, self.link)
+        getPage(self.DRIVER, self.link)
+        
         
         content = self.DRIVER.find_element(By.XPATH, self.xpath["post"])
         self.getTitleContents(content)
