@@ -1,4 +1,5 @@
 .venv/
-/Static/Clips/background/*
-/Static/Clips/processed/*
+/Static/Clips/*
 /testing/
+client_secrets.json
+Uploader/uploader.py-oauth2.json
